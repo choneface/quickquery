@@ -3,8 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
 import TextInput from 'ink-mini-code-editor';
 import pg from 'pg';
+import { QueryResults } from './components/index.js';
+import { parseQueryResult, type QueryResultData } from './types.js';
+import { TEST_QUERY_RESULT } from './testdata.js';
 
-type AppState = 'username' | 'password' | 'connecting' | 'connected' | 'error';
+type AppState = 'username' | 'password' | 'connecting' | 'connected' | 'executing' | 'results' | 'error';
 
 interface ConnectionConfig {
 	host: string;
@@ -37,6 +40,8 @@ const App = ({ config }: AppProps) => {
 	const [error, setError] = useState<string>('');
 	const [client, setClient] = useState<pg.Client | null>(null);
 	const [query, setQuery] = useState('SELECT 1');
+	const [results, setResults] = useState<QueryResultData | null>(null);
+	const [queryError, setQueryError] = useState<string>('');
 
 	useInput((input, key) => {
 		if (key.ctrl && input === 'c') {
@@ -85,8 +90,27 @@ const App = ({ config }: AppProps) => {
 	}, [state, config, username, password]);
 
 	const handleQuerySubmit = async () => {
-		// Query execution will be implemented next
-		console.log('Query:', query);
+		if (!client || !query.trim()) return;
+
+		setQueryError('');
+		setState('executing');
+
+		const startTime = performance.now();
+		try {
+			const result = await client.query(query);
+			const executionTime = performance.now() - startTime;
+			const parsed = parseQueryResult(result, executionTime);
+			setResults(parsed);
+			setState('results');
+		} catch (err) {
+			setQueryError((err as Error).message);
+			setState('connected');
+		}
+	};
+
+	const handleBackToQuery = () => {
+		setResults(null);
+		setState('connected');
 	};
 
 	// Error state
@@ -115,6 +139,34 @@ const App = ({ config }: AppProps) => {
 		);
 	}
 
+	// Executing query state
+	if (state === 'executing') {
+		return (
+			<Box flexDirection="column" padding={1}>
+				<Box>
+					<Text bold color="green">Connected</Text>
+					<Text dimColor> {username}@{config.host}:{config.port}/{config.database}</Text>
+				</Box>
+				<Box marginTop={1}>
+					<Text color="yellow">Executing query...</Text>
+				</Box>
+			</Box>
+		);
+	}
+
+	// Results state
+	if (state === 'results' && results) {
+		return (
+			<Box flexDirection="column" padding={1}>
+				<Box marginBottom={1}>
+					<Text bold color="green">Connected</Text>
+					<Text dimColor> {username}@{config.host}:{config.port}/{config.database}</Text>
+				</Box>
+				<QueryResults data={results} onBack={handleBackToQuery} />
+			</Box>
+		);
+	}
+
 	// Connected - show query editor
 	if (state === 'connected') {
 		return (
@@ -123,6 +175,12 @@ const App = ({ config }: AppProps) => {
 					<Text bold color="green">Connected</Text>
 					<Text dimColor> {username}@{config.host}:{config.port}/{config.database}</Text>
 				</Box>
+				{queryError && (
+					<Box marginTop={1} flexDirection="column">
+						<Text bold color="red">Query Error</Text>
+						<Text color="red">{queryError}</Text>
+					</Box>
+				)}
 				<Box marginTop={1} flexDirection="column">
 					<Text dimColor>Enter SQL query (press Enter to execute):</Text>
 					<Box>
@@ -179,22 +237,57 @@ const App = ({ config }: AppProps) => {
 	);
 };
 
+// Test mode component
+const TestApp = () => {
+	const { exit } = useApp();
+
+	const handleBack = () => {
+		exit();
+	};
+
+	useInput((input, key) => {
+		if (key.ctrl && input === 'c') {
+			exit();
+		}
+	});
+
+	return (
+		<Box flexDirection="column" padding={1}>
+			<Box marginBottom={1}>
+				<Text bold color="yellow">Test Mode</Text>
+				<Text dimColor> - Displaying sample data</Text>
+			</Box>
+			<QueryResults data={TEST_QUERY_RESULT} onBack={handleBack} />
+		</Box>
+	);
+};
+
 // Parse CLI arguments
 const args = process.argv.slice(2);
-const databaseUrl = args[0];
 
-if (!databaseUrl) {
-	console.error('Usage: qq <database-url>');
-	console.error('Example: qq jdbc:postgresql://localhost:5432/postgres');
-	process.exit(1);
+// Check for --test-table flag
+if (args.includes('--test-table')) {
+	render(<TestApp />);
+} else {
+	const databaseUrl = args[0];
+
+	if (!databaseUrl) {
+		console.error('Usage: qq <database-url>');
+		console.error('       qq --test-table');
+		console.error('');
+		console.error('Examples:');
+		console.error('  qq jdbc:postgresql://localhost:5432/postgres');
+		console.error('  qq --test-table    # Test table display with sample data');
+		process.exit(1);
+	}
+
+	let config: ConnectionConfig;
+	try {
+		config = parseJdbcUrl(databaseUrl);
+	} catch (err) {
+		console.error((err as Error).message);
+		process.exit(1);
+	}
+
+	render(<App config={config} />);
 }
-
-let config: ConnectionConfig;
-try {
-	config = parseJdbcUrl(databaseUrl);
-} catch (err) {
-	console.error((err as Error).message);
-	process.exit(1);
-}
-
-render(<App config={config} />);
