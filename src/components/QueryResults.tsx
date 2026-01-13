@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { ResultHeader } from './ResultHeader.js';
 import { ResultRow } from './ResultRow.js';
 import { ResultFooter } from './ResultFooter.js';
 import { ScrollIndicator } from './ScrollIndicator.js';
-import type { QueryResultData } from '../types.js';
+import { fitColumnsToWidth, calculateTableWidth, type QueryResultData } from '../types.js';
 
 interface QueryResultsProps {
 	data: QueryResultData;
@@ -19,9 +19,24 @@ export const QueryResults = ({ data, onBack }: QueryResultsProps) => {
 	const [scrollOffset, setScrollOffset] = useState(0);
 	const [selectedRow, setSelectedRow] = useState(0);
 
-	// Calculate visible rows based on terminal height (reserve space for header/footer)
+	// Get terminal dimensions
 	const terminalHeight = stdout?.rows ?? 24;
+	const terminalWidth = stdout?.columns ?? 80;
+
+	// Calculate visible rows based on terminal height (reserve space for header/footer)
 	const visibleRows = Math.max(5, Math.min(DEFAULT_VISIBLE_ROWS, terminalHeight - 12));
+
+	// Fit columns to terminal width (memoized to avoid recalculating on every render)
+	const fittedColumns = useMemo(
+		() => fitColumnsToWidth(data.columns, terminalWidth - 2), // -2 for scroll indicator
+		[data.columns, terminalWidth]
+	);
+
+	// Check if terminal is too narrow to display anything useful
+	const minRequiredWidth = calculateTableWidth(
+		data.columns.map((c) => ({ ...c, width: 3 })) // Minimum 3 chars per column
+	);
+	const isTooNarrow = terminalWidth < minRequiredWidth + 2;
 
 	const maxScroll = Math.max(0, data.rows.length - visibleRows);
 
@@ -89,6 +104,22 @@ export const QueryResults = ({ data, onBack }: QueryResultsProps) => {
 
 	const visibleData = data.rows.slice(scrollOffset, scrollOffset + visibleRows);
 
+	// Terminal too narrow to display table
+	if (isTooNarrow) {
+		return (
+			<Box flexDirection="column" padding={1}>
+				<Text color="yellow">Terminal too narrow to display results.</Text>
+				<Text dimColor>
+					Need at least {minRequiredWidth + 2} columns, have {terminalWidth}.
+				</Text>
+				<Text dimColor>Resize terminal or reduce number of columns in query.</Text>
+				<Box marginTop={1}>
+					<Text dimColor>Press q to go back</Text>
+				</Box>
+			</Box>
+		);
+	}
+
 	if (data.rows.length === 0) {
 		return (
 			<Box flexDirection="column" padding={1}>
@@ -103,14 +134,14 @@ export const QueryResults = ({ data, onBack }: QueryResultsProps) => {
 
 	return (
 		<Box flexDirection="column">
-			<ResultHeader columns={data.columns} />
+			<ResultHeader columns={fittedColumns} />
 			<Box>
 				<Box flexDirection="column">
 					{visibleData.map((row, idx) => (
 						<ResultRow
 							key={scrollOffset + idx}
 							row={row}
-							columns={data.columns}
+							columns={fittedColumns}
 							isSelected={scrollOffset + idx === selectedRow}
 						/>
 					))}
@@ -122,7 +153,7 @@ export const QueryResults = ({ data, onBack }: QueryResultsProps) => {
 				/>
 			</Box>
 			<ResultFooter
-				columns={data.columns}
+				columns={fittedColumns}
 				rowCount={data.rowCount}
 				executionTime={data.executionTime}
 				viewStart={scrollOffset}

@@ -1,4 +1,4 @@
-import type { QueryResultData } from '../types.js';
+import { type QueryResultData } from '../types.js';
 interface QueryResultsProps {
     data: QueryResultData;
     onBack: () => void;

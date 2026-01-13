@@ -19,3 +19,14 @@ export declare function formatValue(value: unknown): string;
 export declare function getCellType(value: unknown): CellValue['type'];
 export declare function truncate(str: string, maxLength: number): string;
 export declare function padCell(value: string, width: number, type: CellValue['type']): string;
+/**
+ * Calculate the total width a table would take given columns.
+ * Each column takes: 1 space + content + 1 space + 1 border (│)
+ * Plus: 1 selection indicator + 1 initial border
+ */
+export declare function calculateTableWidth(columns: ColumnInfo[]): number;
+/**
+ * Fit columns to available terminal width by proportionally shrinking if needed.
+ * Returns new column array with adjusted widths.
+ */
+export declare function fitColumnsToWidth(columns: ColumnInfo[], terminalWidth: number): ColumnInfo[];

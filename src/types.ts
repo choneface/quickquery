@@ -97,3 +97,66 @@ export function padCell(value: string, width: number, type: CellValue['type']): 
 	}
 	return truncated.padEnd(width);
 }
+
+/**
+ * Calculate the total width a table would take given columns.
+ * Each column takes: 1 space + content + 1 space + 1 border (│)
+ * Plus: 1 selection indicator + 1 initial border
+ */
+export function calculateTableWidth(columns: ColumnInfo[]): number {
+	// Selection indicator (1) + initial border (1) + each column (width + 3 for " content │")
+	return 2 + columns.reduce((sum, col) => sum + col.width + 3, 0);
+}
+
+/**
+ * Fit columns to available terminal width by proportionally shrinking if needed.
+ * Returns new column array with adjusted widths.
+ */
+export function fitColumnsToWidth(columns: ColumnInfo[], terminalWidth: number): ColumnInfo[] {
+	const MIN_COL_WIDTH = 3; // Minimum readable width
+	const FIXED_OVERHEAD = 2; // Selection indicator + initial border
+	const PER_COL_OVERHEAD = 3; // " " + content + " │"
+
+	// Available width for actual content
+	const totalOverhead = FIXED_OVERHEAD + columns.length * PER_COL_OVERHEAD;
+	const availableContentWidth = terminalWidth - totalOverhead;
+
+	// Current total content width
+	const currentContentWidth = columns.reduce((sum, col) => sum + col.width, 0);
+
+	// If it fits, return as-is
+	if (currentContentWidth <= availableContentWidth) {
+		return columns;
+	}
+
+	// Need to shrink - calculate proportionally
+	const scaleFactor = availableContentWidth / currentContentWidth;
+
+	// First pass: scale proportionally, enforce minimum
+	let adjusted = columns.map((col) => ({
+		...col,
+		width: Math.max(MIN_COL_WIDTH, Math.floor(col.width * scaleFactor)),
+	}));
+
+	// Second pass: if we're still over, trim largest columns first
+	let adjustedTotal = adjusted.reduce((sum, col) => sum + col.width, 0);
+
+	while (adjustedTotal > availableContentWidth && adjustedTotal > columns.length * MIN_COL_WIDTH) {
+		// Find the widest column that's above minimum
+		let maxIdx = -1;
+		let maxWidth = MIN_COL_WIDTH;
+		for (let i = 0; i < adjusted.length; i++) {
+			if (adjusted[i].width > maxWidth) {
+				maxWidth = adjusted[i].width;
+				maxIdx = i;
+			}
+		}
+
+		if (maxIdx === -1) break; // All at minimum
+
+		adjusted[maxIdx] = { ...adjusted[maxIdx], width: adjusted[maxIdx].width - 1 };
+		adjustedTotal--;
+	}
+
+	return adjusted;
+}
