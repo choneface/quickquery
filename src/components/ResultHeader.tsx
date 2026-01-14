@@ -12,13 +12,13 @@ interface ResultHeaderProps {
 export const ResultHeader = ({ columns, needsLeftScroll = false, needsRightScroll = false }: ResultHeaderProps) => {
 	const topBorder = buildBorder(columns, '┌', '┬', '┐');
 	const bottomBorder = buildBorder(columns, '├', '┼', '┤');
-	const scrollIndicator = needsLeftScroll ? '◀' : ' ';
+	const scrollIndicator = needsLeftScroll ? '<' : ' ';
 
 	return (
 		<Box flexDirection="column">
 			<Text color="gray">{scrollIndicator + topBorder}</Text>
 			<Box>
-				<Text color="cyan">{needsLeftScroll ? '◀' : ' '}</Text>
+				<Text color="cyan">{needsLeftScroll ? '<' : ' '}</Text>
 				<Text color="gray">│</Text>
 				{columns.map((col, idx) => (
 					<Box key={col.name}>
@@ -30,7 +30,7 @@ export const ResultHeader = ({ columns, needsLeftScroll = false, needsRightScrol
 						<Text color="gray">│</Text>
 					</Box>
 				))}
-				{needsRightScroll && <Text color="cyan">▶</Text>}
+				{needsRightScroll && <Text color="cyan">{'>'}</Text>}
 			</Box>
 			<Text color="gray">{scrollIndicator + bottomBorder}</Text>
 		</Box>

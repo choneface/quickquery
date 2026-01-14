@@ -13,7 +13,7 @@ interface ResultRowProps {
 export const ResultRow = ({ row, columns, isSelected = false, needsRightScroll = false }: ResultRowProps) => {
 	return (
 		<Box>
-			<Text>{isSelected ? '▶' : ' '}</Text>
+			<Text>{isSelected ? '>' : ' '}</Text>
 			<Text color="gray">│</Text>
 			{columns.map((col, idx) => (
 				<Box key={col.name}>
@@ -23,7 +23,7 @@ export const ResultRow = ({ row, columns, isSelected = false, needsRightScroll =
 					<Text color="gray">│</Text>
 				</Box>
 			))}
-			{needsRightScroll && <Text color="cyan">▶</Text>}
+			{needsRightScroll && <Text color="cyan">{'>'}</Text>}
 		</Box>
 	);
 };
