@@ -6,6 +6,7 @@ import pg from 'pg';
 import { QueryResults } from './components/index.js';
 import { parseQueryResult, type QueryResultData } from './types.js';
 import { TEST_QUERY_RESULT } from './testdata.js';
+import { loadSchema, createEmptySchema, getSuggestion, type DatabaseSchema } from './autocomplete/index.js';
 
 type AppState = 'username' | 'password' | 'connecting' | 'connected' | 'executing' | 'results' | 'error';
 
@@ -42,6 +43,7 @@ const App = ({ config }: AppProps) => {
 	const [query, setQuery] = useState('SELECT 1');
 	const [results, setResults] = useState<QueryResultData | null>(null);
 	const [queryError, setQueryError] = useState<string>('');
+	const [schema, setSchema] = useState<DatabaseSchema | null>(null);
 
 	useInput((input, key) => {
 		if (key.ctrl && input === 'c') {
@@ -97,6 +99,18 @@ const App = ({ config }: AppProps) => {
 			// it will be stored in state and closed on app exit
 		};
 	}, [state, config, username, password]);
+
+	// Load schema after connection for autocomplete
+	useEffect(() => {
+		if (state === 'connected' && client && !schema) {
+			loadSchema(client)
+				.then(setSchema)
+				.catch(() => {
+					// Graceful degradation: use empty schema with keywords/functions
+					setSchema(createEmptySchema());
+				});
+		}
+	}, [state, client, schema]);
 
 	const handleQuerySubmit = async () => {
 		if (!client || !query.trim()) return;
@@ -200,6 +214,7 @@ const App = ({ config }: AppProps) => {
 							onSubmit={handleQuerySubmit}
 							language="sql"
 							placeholder="SELECT * FROM ..."
+							getSuggestion={schema ? (value: string) => getSuggestion(value, schema) : undefined}
 						/>
 					</Box>
 				</Box>

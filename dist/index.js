@@ -7,6 +7,7 @@ import pg from 'pg';
 import { QueryResults } from './components/index.js';
 import { parseQueryResult } from './types.js';
 import { TEST_QUERY_RESULT } from './testdata.js';
+import { loadSchema, createEmptySchema, getSuggestion } from './autocomplete/index.js';
 function parseJdbcUrl(url) {
     // Parse jdbc:postgresql://host:port/database
     const match = url.match(/^jdbc:postgresql:\/\/([^:]+):(\d+)\/(.+)$/);
@@ -29,6 +30,7 @@ const App = ({ config }) => {
     const [query, setQuery] = useState('SELECT 1');
     const [results, setResults] = useState(null);
     const [queryError, setQueryError] = useState('');
+    const [schema, setSchema] = useState(null);
     useInput((input, key) => {
         if (key.ctrl && input === 'c') {
             if (client) {
@@ -78,6 +80,17 @@ const App = ({ config }) => {
             // it will be stored in state and closed on app exit
         };
     }, [state, config, username, password]);
+    // Load schema after connection for autocomplete
+    useEffect(() => {
+        if (state === 'connected' && client && !schema) {
+            loadSchema(client)
+                .then(setSchema)
+                .catch(() => {
+                // Graceful degradation: use empty schema with keywords/functions
+                setSchema(createEmptySchema());
+            });
+        }
+    }, [state, client, schema]);
     const handleQuerySubmit = async () => {
         if (!client || !query.trim())
             return;
@@ -118,7 +131,7 @@ const App = ({ config }) => {
     }
     // Connected - show query editor
     if (state === 'connected') {
-        return (_jsxs(Box, { flexDirection: "column", padding: 1, children: [_jsxs(Box, { children: [_jsx(Text, { bold: true, color: "green", children: "Connected" }), _jsxs(Text, { dimColor: true, children: [" ", username, "@", config.host, ":", config.port, "/", config.database] })] }), queryError && (_jsxs(Box, { marginTop: 1, flexDirection: "column", children: [_jsx(Text, { bold: true, color: "red", children: "Query Error" }), _jsx(Text, { color: "red", children: queryError })] })), _jsxs(Box, { marginTop: 1, flexDirection: "column", children: [_jsx(Text, { dimColor: true, children: "Enter SQL query (press Enter to execute):" }), _jsxs(Box, { children: [_jsx(Text, { color: "cyan", children: "> " }), _jsx(TextInput, { value: query, onChange: setQuery, onSubmit: handleQuerySubmit, language: "sql", placeholder: "SELECT * FROM ..." })] })] }), _jsx(Box, { marginTop: 1, children: _jsx(Text, { dimColor: true, children: "Ctrl+C to exit" }) })] }));
+        return (_jsxs(Box, { flexDirection: "column", padding: 1, children: [_jsxs(Box, { children: [_jsx(Text, { bold: true, color: "green", children: "Connected" }), _jsxs(Text, { dimColor: true, children: [" ", username, "@", config.host, ":", config.port, "/", config.database] })] }), queryError && (_jsxs(Box, { marginTop: 1, flexDirection: "column", children: [_jsx(Text, { bold: true, color: "red", children: "Query Error" }), _jsx(Text, { color: "red", children: queryError })] })), _jsxs(Box, { marginTop: 1, flexDirection: "column", children: [_jsx(Text, { dimColor: true, children: "Enter SQL query (press Enter to execute):" }), _jsxs(Box, { children: [_jsx(Text, { color: "cyan", children: "> " }), _jsx(TextInput, { value: query, onChange: setQuery, onSubmit: handleQuerySubmit, language: "sql", placeholder: "SELECT * FROM ...", getSuggestion: schema ? (value) => getSuggestion(value, schema) : undefined })] })] }), _jsx(Box, { marginTop: 1, children: _jsx(Text, { dimColor: true, children: "Ctrl+C to exit" }) })] }));
     }
     // Login prompts
     return (_jsxs(Box, { flexDirection: "column", padding: 1, children: [_jsx(Text, { bold: true, children: "QuickQuery" }), _jsxs(Text, { dimColor: true, children: [config.host, ":", config.port, "/", config.database] }), _jsxs(Box, { marginTop: 1, flexDirection: "column", children: [_jsxs(Box, { children: [_jsx(Text, { children: "Username: " }), state === 'username' ? (_jsx(TextInput, { value: username, onChange: setUsername, onSubmit: handleUsernameSubmit, placeholder: "Enter username" })) : (_jsx(Text, { children: username }))] }), state === 'password' && (_jsxs(Box, { children: [_jsx(Text, { children: "Password: " }), _jsx(TextInput, { value: password, onChange: setPassword, onSubmit: handlePasswordSubmit, placeholder: "Enter password", mask: "*" })] }))] })] }));

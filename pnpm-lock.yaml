@@ -12,8 +12,8 @@ importers:
         specifier: ^6.6.0
         version: 6.6.0(@types/react@19.2.7)(react@19.2.3)
       ink-mini-code-editor:
-        specifier: ^0.0.1
-        version: 0.0.1(ink@6.6.0(@types/react@19.2.7)(react@19.2.3))(react@19.2.3)
+        specifier: ^0.0.3
+        version: 0.0.3(ink@6.6.0(@types/react@19.2.7)(react@19.2.3))(react@19.2.3)
       pg:
         specifier: ^8.16.3
         version: 8.16.3
@@ -334,8 +334,8 @@ packages:
     resolution: {integrity: sha512-m6FAo/spmsW2Ab2fU35JTYwtOKa2yAwXSwgjSv1TJzh4Mh7mC3lzAOVLBprb72XsTrgkEIsl7YrFNAiDiRhIGg==}
     engines: {node: '>=12'}
 
-  ink-mini-code-editor@0.0.1:
-    resolution: {integrity: sha512-rCQPFeNgx5MjXsOIJEWcUB/G/5mVIu1Jcstjs1CDPXDEd0RCAKcL1XaKFk7o00/8/RscwuI2P+wCDxq1LFqwOA==}
+  ink-mini-code-editor@0.0.3:
+    resolution: {integrity: sha512-cUi6sRkIIcCmdeI/yEFIHM5onjghZAzKRsvrksI9I7sE4Jy+UCzxCT5u7eaAOARyO02nQKIluJ7AS+XTM/dp+Q==}
     engines: {node: '>=18'}
     peerDependencies:
       ink: '>=5'
@@ -804,7 +804,7 @@ snapshots:
 
   indent-string@5.0.0: {}
 
-  ink-mini-code-editor@0.0.1(ink@6.6.0(@types/react@19.2.7)(react@19.2.3))(react@19.2.3):
+  ink-mini-code-editor@0.0.3(ink@6.6.0(@types/react@19.2.7)(react@19.2.3))(react@19.2.3):
     dependencies:
       chalk: 5.6.2
       ink: 6.6.0(@types/react@19.2.7)(react@19.2.3)
