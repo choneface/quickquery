@@ -1,4 +1,4 @@
-# QuickQuery
+# QuickerQuery
 
 A terminal-based database query tool inspired by JetBrains DataGrip. Query databases directly from the terminal with syntax highlighting, result tables, and connection management—without leaving your workflow.
 
@@ -54,8 +54,8 @@ Once connected, you'll have a SQL editor where you can write and execute queries
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/quickquery.git
-cd quickquery
+git clone https://github.com/your-username/quickerquery.git
+cd quickerquery
 
 # Install dependencies
 pnpm install
