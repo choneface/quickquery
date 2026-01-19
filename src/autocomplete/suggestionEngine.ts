@@ -20,7 +20,7 @@ export function getSuggestion(query: string, schema: DatabaseSchema): string | u
 	}
 
 	// Build the complete suggestion by replacing the partial with the match
-	const suggestion = ranked[0].text;
+	const suggestion = matchCase(ranked[0].text, context.partial);
 	if (!context.partial) {
 		// No partial word - just append the suggestion
 		return query + suggestion;
@@ -29,6 +29,31 @@ export function getSuggestion(query: string, schema: DatabaseSchema): string | u
 	// Replace the partial word with the full suggestion
 	const beforePartial = query.slice(0, query.length - context.partial.length);
 	return beforePartial + suggestion;
+}
+
+/**
+ * Transform the suggestion to match the case style of the partial word typed by the user.
+ * - If partial is all lowercase → return suggestion in lowercase
+ * - If partial is all uppercase → return suggestion in uppercase
+ * - Otherwise → return suggestion as-is (original case)
+ */
+function matchCase(suggestion: string, partial: string): string {
+	if (!partial) {
+		return suggestion;
+	}
+
+	const isAllLower = partial === partial.toLowerCase();
+	const isAllUpper = partial === partial.toUpperCase();
+
+	if (isAllLower) {
+		return suggestion.toLowerCase();
+	}
+	if (isAllUpper) {
+		return suggestion.toUpperCase();
+	}
+
+	// Mixed case - return original
+	return suggestion;
 }
 
 function getCandidates(context: SQLContext, schema: DatabaseSchema): Candidate[] {
