@@ -1,5 +1,5 @@
 import type pg from 'pg';
-import type { DatabaseSchema, TableInfo, ColumnMeta } from './types.js';
+import type { DatabaseSchema, TableInfo, ColumnMeta, ForeignKey } from './types.js';
 import { SQL_KEYWORDS, SQL_FUNCTIONS } from './keywords.js';
 
 interface TableRow {
@@ -11,6 +11,13 @@ interface ColumnRow {
 	column_name: string;
 	data_type: string;
 	is_nullable: string;
+}
+
+interface ForeignKeyRow {
+	table_name: string;
+	column_name: string;
+	referenced_table: string;
+	referenced_column: string;
 }
 
 export async function loadSchema(client: pg.Client): Promise<DatabaseSchema> {
@@ -29,6 +36,23 @@ export async function loadSchema(client: pg.Client): Promise<DatabaseSchema> {
 		ORDER BY table_name, ordinal_position
 	`);
 
+	const foreignKeysResult = await client.query<ForeignKeyRow>(`
+		SELECT
+			kcu.table_name,
+			kcu.column_name,
+			ccu.table_name AS referenced_table,
+			ccu.column_name AS referenced_column
+		FROM information_schema.key_column_usage kcu
+		JOIN information_schema.constraint_column_usage ccu
+			ON kcu.constraint_name = ccu.constraint_name
+			AND kcu.constraint_schema = ccu.constraint_schema
+		JOIN information_schema.table_constraints tc
+			ON kcu.constraint_name = tc.constraint_name
+			AND kcu.constraint_schema = tc.constraint_schema
+		WHERE tc.constraint_type = 'FOREIGN KEY'
+			AND kcu.table_schema = current_schema()
+	`);
+
 	const tableMap = new Map<string, TableInfo>();
 
 	for (const row of tablesResult.rows) {
@@ -36,6 +60,7 @@ export async function loadSchema(client: pg.Client): Promise<DatabaseSchema> {
 			name: row.table_name,
 			schema: 'public',
 			columns: [],
+			foreignKeys: [],
 		});
 	}
 
@@ -48,6 +73,18 @@ export async function loadSchema(client: pg.Client): Promise<DatabaseSchema> {
 				isNullable: row.is_nullable === 'YES',
 			};
 			table.columns.push(column);
+		}
+	}
+
+	for (const row of foreignKeysResult.rows) {
+		const table = tableMap.get(row.table_name);
+		if (table) {
+			const fk: ForeignKey = {
+				column: row.column_name,
+				referencedTable: row.referenced_table,
+				referencedColumn: row.referenced_column,
+			};
+			table.foreignKeys.push(fk);
 		}
 	}
 

@@ -94,6 +94,25 @@ function getCandidates(context: SQLContext, schema: DatabaseSchema): Candidate[]
 			break;
 		}
 
+		case 'JOIN_ON': {
+			// Suggest FK-based join conditions with highest priority
+			const joinConditions = getJoinConditions(
+				context.leftTable,
+				context.rightTable,
+				schema
+			);
+			for (const condition of joinConditions) {
+				candidates.push({ text: condition, priority: 0 }); // Highest priority
+			}
+
+			// Fall back to column suggestions if no FK relationships
+			const columns = getColumnsForTables(context.tables, schema);
+			for (const col of columns) {
+				candidates.push({ text: col, priority: 1 });
+			}
+			break;
+		}
+
 		case 'WHERE_COLUMN': {
 			// Add columns from known tables
 			const columns = getColumnsForTables(context.tables, schema);
@@ -168,6 +187,53 @@ function getColumnsForTables(tableNames: string[], schema: DatabaseSchema): stri
 	}
 
 	return columns;
+}
+
+/**
+ * Get join condition suggestions based on FK relationships between two tables.
+ * Returns conditions like "orders.user_id = users.id"
+ */
+function getJoinConditions(
+	leftTableName: string,
+	rightTableName: string,
+	schema: DatabaseSchema
+): string[] {
+	const conditions: string[] = [];
+
+	const leftTable = schema.tables.find(
+		(t) => t.name.toLowerCase() === leftTableName.toLowerCase()
+	);
+	const rightTable = schema.tables.find(
+		(t) => t.name.toLowerCase() === rightTableName.toLowerCase()
+	);
+
+	if (!leftTable || !rightTable) {
+		return conditions;
+	}
+
+	// Check if rightTable has FK to leftTable
+	// e.g., orders.user_id -> users.id
+	// Suggests: orders.user_id = users.id
+	for (const fk of rightTable.foreignKeys) {
+		if (fk.referencedTable.toLowerCase() === leftTableName.toLowerCase()) {
+			conditions.push(
+				`${rightTable.name}.${fk.column} = ${leftTable.name}.${fk.referencedColumn}`
+			);
+		}
+	}
+
+	// Check if leftTable has FK to rightTable
+	// e.g., users.department_id -> departments.id
+	// Suggests: users.department_id = departments.id
+	for (const fk of leftTable.foreignKeys) {
+		if (fk.referencedTable.toLowerCase() === rightTableName.toLowerCase()) {
+			conditions.push(
+				`${leftTable.name}.${fk.column} = ${rightTable.name}.${fk.referencedColumn}`
+			);
+		}
+	}
+
+	return conditions;
 }
 
 function rankCandidates(candidates: Candidate[], partial: string): Candidate[] {
