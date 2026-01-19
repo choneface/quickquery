@@ -16,7 +16,7 @@ export const ResultRow = ({ row, columns, isSelected = false, needsRightScroll =
 			<Text>{isSelected ? '>' : ' '}</Text>
 			<Text color="gray">│</Text>
 			{columns.map((col, idx) => (
-				<Box key={col.name}>
+				<Box key={idx}>
 					<Text> </Text>
 					<ResultCell value={row[col.name]} width={col.width} />
 					<Text> </Text>

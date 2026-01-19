@@ -21,7 +21,7 @@ export const ResultHeader = ({ columns, needsLeftScroll = false, needsRightScrol
 				<Text color="cyan">{needsLeftScroll ? '<' : ' '}</Text>
 				<Text color="gray">│</Text>
 				{columns.map((col, idx) => (
-					<Box key={col.name}>
+					<Box key={idx}>
 						<Text> </Text>
 						<Text bold color="white">
 							{truncate(col.name, col.width).padEnd(col.width)}
