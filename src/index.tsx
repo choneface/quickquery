@@ -7,6 +7,7 @@ import { QueryResults } from './components/index.js';
 import { parseQueryResult, type QueryResultData } from './types.js';
 import { TEST_QUERY_RESULT } from './testdata.js';
 import { loadSchema, createEmptySchema, getSuggestion, type DatabaseSchema } from './autocomplete/index.js';
+import { runHeadless } from './headless.js';
 
 type AppState = 'username' | 'password' | 'connecting' | 'connected' | 'executing' | 'results' | 'error';
 
@@ -289,18 +290,109 @@ const TestApp = () => {
 // Parse CLI arguments
 const args = process.argv.slice(2);
 
+interface ParsedArgs {
+	databaseUrl: string | null;
+	testTable: boolean;
+	headless: boolean;
+	command: string | null;
+	user: string | null;
+	password: string | null;
+}
+
+function parseArgs(args: string[]): ParsedArgs {
+	const result: ParsedArgs = {
+		databaseUrl: null,
+		testTable: false,
+		headless: false,
+		command: null,
+		user: null,
+		password: null,
+	};
+
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+
+		if (arg === '--test-table') {
+			result.testTable = true;
+		} else if (arg === '--headless') {
+			result.headless = true;
+		} else if (arg === '-c' || arg === '--command') {
+			result.command = args[++i] || null;
+		} else if (arg === '-u' || arg === '--user') {
+			result.user = args[++i] || null;
+		} else if (arg === '-p' || arg === '--password') {
+			result.password = args[++i] || null;
+		} else if (!arg.startsWith('-') && !result.databaseUrl) {
+			result.databaseUrl = arg;
+		}
+	}
+
+	return result;
+}
+
+const parsed = parseArgs(args);
+
 // Check for --test-table flag
-if (args.includes('--test-table')) {
+if (parsed.testTable) {
 	render(<TestApp />);
+} else if (parsed.headless) {
+	// Headless mode: connect, execute, print results, exit
+	if (!parsed.databaseUrl) {
+		console.error('Error: Database URL is required for headless mode');
+		console.error('');
+		console.error('Usage: qq --headless <database-url> -c "<sql-query>"');
+		console.error('');
+		console.error('Options:');
+		console.error('  -c, --command <query>   SQL query to execute');
+		console.error('  -u, --user <username>   Database username (or set PGUSER)');
+		console.error('  -p, --password <pass>   Database password (or set PGPASSWORD)');
+		process.exit(1);
+	}
+
+	if (!parsed.command) {
+		console.error('Error: Query is required for headless mode');
+		console.error('');
+		console.error('Usage: qq --headless <database-url> -c "<sql-query>"');
+		process.exit(1);
+	}
+
+	const user = parsed.user || process.env.PGUSER;
+	const password = parsed.password || process.env.PGPASSWORD;
+
+	if (!user || !password) {
+		console.error('Error: Username and password are required');
+		console.error('');
+		console.error('Provide via flags (-u, -p) or environment variables (PGUSER, PGPASSWORD)');
+		process.exit(1);
+	}
+
+	let config: ConnectionConfig;
+	try {
+		config = parseJdbcUrl(parsed.databaseUrl!);
+	} catch (err) {
+		console.error((err as Error).message);
+		process.exit(1);
+	}
+
+	runHeadless({
+		host: config!.host,
+		port: config!.port,
+		database: config!.database,
+		user,
+		password,
+		query: parsed.command!,
+	});
 } else {
-	const databaseUrl = args[0];
+	const databaseUrl = parsed.databaseUrl;
 
 	if (!databaseUrl) {
 		console.error('Usage: qq <database-url>');
+		console.error('       qq --headless <database-url> -c "<sql-query>"');
 		console.error('       qq --test-table');
 		console.error('');
 		console.error('Examples:');
 		console.error('  qq jdbc:postgresql://localhost:5432/postgres');
+		console.error('  qq --headless jdbc:postgresql://localhost:5432/postgres -c "SELECT * FROM users"');
 		console.error('  qq --test-table    # Test table display with sample data');
 		process.exit(1);
 	}
